@@ -71,6 +71,16 @@ footer a {
     color: #FFFFFF;
 }
 
+.added-text {
+    color: #0000FF;
+}
+
+.data-type {
+    background-color: #EEEEEE;
+    font-family: 'Courier New', Courier, 'Lucida Console', Monaco, monospace;
+    font-weight: bold;
+}
+
 .emphasis {
     font-weight: bold;
 }
@@ -78,6 +88,11 @@ footer a {
 .notice {
     background-color: #FFFFF0;
     font-style: italic;
+}
+
+.removed-text {
+    color: #FF0000;
+    text-decoration: line-through;
 }
 
 .soft-emphasis {

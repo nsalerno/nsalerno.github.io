@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<link rel="stylesheet" href="../normalize.css">
+<link rel="stylesheet" href="../site.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pay your taxes - NSalerno</title>
+</head>
+
+<body>
+
+<header>
+<h1>NSalerno</h1>
+</header>
+
+<nav>
+<ul>
+
+<li><a href="../index.html">Home</a></li>
+
+<li><a href="../about/index.html">About</a></li>
+
+<li><a href="./index.html">Blog</a></li>
+
+<li>
+<ul>
+<li><a href="./2026.html">2026</a></li>
+<li><a href="./i-am-a-coder.html">2026-08</a></li>
+<li><a href="./i-love-the-personal-computer.html">2026-09</a></li>
+<li><a href="./disclaimer-and-ground-rules.html">2026-10</a></li>
+<li>2026-11</li>
+</ul>
+</li>
+
+<li><a href="../notes/index.html">Notes</a></li>
+
+</ul>
+</nav>
+
+<main>
+<article>
+
+<h1>Pay your taxes</h1>
+
+<section>
+
+<p>Nobody wants to pay taxes. On the other hand, they are necessary because it funds the needful things that must happen. Suppose it’s the year 2000 BC and that we are a small community of people along a river. We live on both banks of the river because each side has something to offer geographically. Crossing the river is an annoyance to the community. We would like a bridge (however, rudimentary it may be given the year). Nobody is going to put in the time and effort without any form of compensation. However, none of us can single-handedly fund the building of a bridge. Collectively, though, we can definitely afford to do so. Thus, we all contribute a small amount from our personal coffers and now we can fund the building of a bridge.</p>
+
+<p>The point of the story is that while none of us want to give up any part of what is ours it can be beneficial to do so as long as we are all getting something in return. But I am not talking about government taxes. This is not a story about financial politics. Since this blog focuses on the art and science of writing software, we are talking about software development taxes.</p>
+
+<p>A software development tax is anything you do that takes extra steps because you chose not to do something in the simplest and most straight forward way. It’s a tax because you pay in key strokes (and the time it takes to press those keys). It’s a tax because you get something in return.</p>
+
+<p>For example, here is the simplest code I can write (where I pay no taxes):</p>
+
+<pre><code>public class EndOfMonthEvent
+    : IProcessingEvent
+{
+    private static readonly string ConnectionString = “...”;
+
+    public void Process(int recordId)
+    {
+        RdbmsDataStore dataStore = new RdbmsDataStore(ConnectionString);
+        var record = dataStore.Load(recordId);
+        // Do work on that record
+    }
+}
+
+public class Workflow
+{
+    private IEnumerable<IProcessingEvent> _events;
+
+    public void Initialize()
+    {
+        // Events to handle
+        _events = new List<IProcessingEvent>();
+        // Add events
+        // ...
+        _events.Add(new EndOfMonthEvent());
+        // ...
+    }
+
+    public void Process(int recordId)
+    {
+        foreach (var event in _events)
+        {
+            event.Process(recordId);
+            if (!Running())
+                break; // We’ve been signaled to stop
+        }
+    }
+}</code></pre>
+
+<p>Nothing inherently wrong with this code. For quick and dirty utility programs the code above is all well and good. However, when we start growing our software, growing our code base, suddenly we start feeling the pain of the simplest software possible. Let’s enumerate those pain points:</p>
+
+<ol>
+<li>Code is tightly coupled. The logic that wants to process a record is coupled with the logic of loading a record.</li>
+<li>Code is difficult to test. The logic cannot be fed a record because it does not accept a record. It loads it from external source whether you like it or not.</li>
+<li>Code is difficult to maintain. If we want to switch data store technologies we have to change all the call sites that use <span class="data-type">RdbmsDataStore</span>.</li>
+</ol>
+
+<p>How do we address these concerns? By refactoring, of course. Let’s start with introducing an interface.</p>
+
+<pre><code>public interface IDataStore
+{
+    Record Load(int recordId);
+}</code></pre>
+
+<p>And like that we just paid a tax. We put in the extra keystrokes but in this point in time our program is no different if we build and run it again. No wonder nobody likes paying taxes! However, let’s continue on this journey. We refactor our class to use the interface:</p>
+
+<pre><code>public class EndOfMonthEvent
+    : IProcessingEvent
+{
+    <span class="removed-text">private static readonly string ConnectionString = “...”;</span>
+&ZeroWidthSpace;
+    <span class="added-text">private readonly IDataStore _dataStore;
+
+    public EndOfMonthEvent(IDataStore dataStore)
+    {
+        _dataStore = dataStore;
+    }</span>
+
+    public void Process(int recordId)
+    {
+        <span class="removed-text">RdbmsDataStore dataStore = new RdbmsDataStore(ConnectionString);</span>
+        var record = _dataStore.Load(recordId);
+        // Do work on that record
+    }
+}</code></pre>
+
+<p>With this new code we address our pain points:</p>
+
+<ol>
+<li>Code is decoupled. Our business logic no longer knows about the RdbmsDataStore.</li>
+<li>Code is testable. We can pass in a mock implementation of <span class="data-type">IDataStore</span> where we control exactly the records fed into the class.</li>
+<li>Code is maintainable. We can switch data store technologies because this class no longer cares about RDBM systems and their details.</li>
+</ol>
+
+<p>However, this is not the end of the story. Developing software can be a zero-sum game where one piece of code wins because another piece of code lost. In this case the <span class="data-type">Workflow</span> class is now on the hook for providing an instance of <span class="data-type">IDataStore</span>. Let’s see our updated <span class="data-type">Workflow</span>:</p>
+
+<pre><code>public class Workflow
+{
+    <span class="added-text">private static readonly string ConnectionString = “...”;</span>
+
+    private IEnumerable<IProcessingEvent> _events;
+
+    public void Initialize()
+    {
+        // Events to handle
+        _events = new List<IProcessingEvent>();
+        // Add events
+        // ...
+        <span class="added-text">var dataStore = new RdbmsDataStore(ConnectionString);</span>
+        _events.Add(new EndOfMonthEvent(<span class="added-text">dataStore</span>));
+        // ...
+    }
+
+    // ...</code></pre>
+
+<p>Now our <span class="data-type">Workflow</span> class has the coupling. Well, we can pay that tax again and refactor <span class="data-type">Workflow</span> and make <span class="data-type">IDataStore</span> a dependency, just like in <span class="data-type">EndOfMonthEvent</span>. But again, the gain here comes at the loss of the caller of <span class="data-type">Workflow</span>. You keep paying this tax until you hit the main method that is the entry point of the application. Now the main method has the knowledge and wires everything up. This is actually good because the main method typically isn’t inside a library assembly. It’s the executable assembly. The library assembly is what we want to be decoupled, testable, and maintainable. The executable assembly is usually the place that makes the final concrete decisions.</p>
+
+<p>At this point you say “Hey, I can mitigate the burden of wiring things up in the main method by using <a href="https://en.wikipedia.org/wiki/Dependency_injection">dependency injection</a> technology.” Yes, you can (and bravo for suggesting it). But the interesting thing here is that introducing a dependency injection library to the code base is yet another tax to pay but this time you were already willing to pay that tax because you know what you get in return (in the context of a code base that is growing beyond the small scale).</p>
+
+<p>The important take away here is that good code and good engineering habits are never free. They cost and are paid in keystrokes. <span class="soft-emphasis">Best practices are taxes in disguise. Only bad practices come for free</span>. Here is an interesting phenomenon. We all know best practices. We all talk about best practices. We all agree they are a good thing. Yet, we don’t follow them. Why? Because each best practice is a tax to pay and we hate paying taxes.</p>
+
+<p>Thus, I implore you, pay your taxes. One final note. Always use discretion. I am not suggesting you pay all the taxes in a single code base. A specific context will reveal what helps, what doesn’t, and what hurts. The taxes that are helpful in one code base may be hurtful in another code base. As in life, too much of a good thing can have a negative impact. It’s very possible to be over taxed. Once that happens your fellow developers will <a href="https://en.wikipedia.org/wiki/Boston_Tea_Party">revolt</a>.</p>
+
+</section>
+
+</article>
+</main>
+
+<footer>
+<p><a href="https://nsalerno.github.io">NSalerno</a> © 2026 by <a href="https://nsalerno.github.io/about/me.html">Nicholas Salerno</a> is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a></p>
+</footer>
+
+</body>
+
+</html>

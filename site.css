@@ -60,6 +60,12 @@ main code {
     min-width: 100%;
 }
 
+main pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
 footer {
     color: #FFFFFF;
     grid-area: footer;
@@ -97,4 +103,20 @@ footer a {
 
 .soft-emphasis {
     font-style: italic;
+}
+
+/* Single column for smartphone and tablets */
+@media (max-width: 768px) {
+    body {
+        grid-auto-flow: row !important;
+        grid-template-areas: none !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    body > * {
+        grid-area: auto !important;
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+        width: 100% !important;
+    }
 }
